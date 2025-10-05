@@ -33,9 +33,63 @@
             padding-bottom: 70px;
         }
         
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: var(--bg-primary);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 8px;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .balance-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 8px 12px;
+            border-radius: 20px;
+        }
+        
+        .balance {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 500;
+        }
+        
+        .balance-icon {
+            color: #ffd700;
+        }
+        
+        .add-balance-btn {
+            background-color: var(--success-color);
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .add-balance-btn:hover {
+            background-color: var(--success-hover);
+        }
+        
         .container {
             flex: 1;
-            padding: 16px;
+            padding: 60px 16px 16px;
             max-width: 100%;
             overflow-x: hidden;
         }
@@ -134,13 +188,15 @@
             background-color: var(--success-color);
             color: white;
             border: none;
-            padding: 12px 20px;
+            padding: 10px 20px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 500;
-            width: 100%;
             transition: background-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
         
         .btn:hover {
@@ -181,6 +237,84 @@
             color: rgba(255, 255, 255, 0.6);
         }
 
+        /* Модальное окно пополнения */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background-color: var(--bg-secondary);
+            padding: 24px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        
+        .modal h3 {
+            margin-bottom: 16px;
+            font-size: 20px;
+        }
+        
+        .modal-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .modal-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .modal-btn.cancel {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .modal-btn.confirm {
+            background-color: var(--success-color);
+            color: white;
+        }
+        
+        .modal-btn.confirm:hover {
+            background-color: var(--success-hover);
+        }
+
         /* Адаптивность для очень маленьких экранов */
         @media (max-width: 360px) {
             .profile {
@@ -192,11 +326,44 @@
                 margin-right: 0;
                 margin-bottom: 12px;
             }
+            
+            .header {
+                padding: 8px 12px;
+            }
+            
+            .balance-container {
+                padding: 6px 10px;
+                font-size: 14px;
+            }
         }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <!-- Шапка с балансом -->
+    <div class="header">
+        <div class="balance-container">
+            <div class="balance">
+                <i class="fas fa-star balance-icon"></i>
+                <span id="balance-amount">0</span>
+            </div>
+            <button class="add-balance-btn" onclick="showAddBalanceModal()">+</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно пополнения -->
+    <div class="modal" id="addBalanceModal">
+        <div class="modal-content">
+            <h3>Пополнение баланса</h3>
+            <p>Сколько Stars вы хотите пополнить?</p>
+            <input type="number" class="modal-input" id="balanceInput" placeholder="Введите количество" min="1" value="100">
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="hideAddBalanceModal()">Отмена</button>
+                <button class="modal-btn confirm" onclick="addBalance()">Пополнить</button>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <!-- Секция Аккаунт -->
         <div id="account-section" class="section active">
@@ -265,14 +432,15 @@
         // Основной объект Telegram Web App
         const tg = window.Telegram.WebApp;
         
+        // Переменные состояния
+        let userBalance = 0;
+        
         // Функция для получения данных пользователя
         function getUserData() {
-            // Способ 1: Через initDataUnsafe (основной способ)
             if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
                 return tg.initDataUnsafe.user;
             }
             
-            // Способ 2: Парсинг initData строки
             if (tg.initData) {
                 try {
                     const urlParams = new URLSearchParams(tg.initData);
@@ -297,7 +465,6 @@
             const debugContent = document.getElementById('debug-content');
             
             if (userData) {
-                // Формируем имя пользователя
                 let displayName = userData.first_name || '';
                 if (userData.last_name) {
                     displayName += ' ' + userData.last_name;
@@ -309,12 +476,10 @@
                 userNameElement.textContent = displayName || 'Пользователь Telegram';
                 userIdElement.textContent = `ID: ${userData.id}`;
                 
-                // Устанавливаем фото
                 if (userData.photo_url) {
                     userPhotoElement.src = userData.photo_url;
                 }
                 
-                // Отладочная информация
                 debugContent.innerHTML = `
                     <div>✓ Данные пользователя загружены</div>
                     <div>Платформа: ${tg.platform}</div>
@@ -322,7 +487,6 @@
                 `;
                 
             } else {
-                // Данные не найдены - тестовый режим
                 userNameElement.textContent = 'Тестовый пользователь';
                 userIdElement.textContent = 'ID: 123456789';
                 
@@ -337,17 +501,14 @@
         
         // Функция для отображения секции
         function showSection(section) {
-            // Скрываем все секции
             document.querySelectorAll('.section').forEach(el => {
                 el.classList.remove('active');
             });
             
-            // Убираем активный класс со всех кнопок
             document.querySelectorAll('.footer button').forEach(btn => {
                 btn.classList.remove('active');
             });
             
-            // Показываем выбранную секцию и активируем кнопку
             document.getElementById(`${section}-section`).classList.add('active');
             document.getElementById(`${section}-btn`).classList.add('active');
         }
@@ -359,6 +520,72 @@
                 message: 'Функция пополнения инвентаря скоро будет доступна!',
                 buttons: [{ type: 'ok' }]
             });
+        }
+        
+        // Функции для работы с балансом
+        function updateBalanceDisplay() {
+            document.getElementById('balance-amount').textContent = userBalance;
+        }
+        
+        function showAddBalanceModal() {
+            document.getElementById('addBalanceModal').classList.add('active');
+            document.getElementById('balanceInput').focus();
+        }
+        
+        function hideAddBalanceModal() {
+            document.getElementById('addBalanceModal').classList.remove('active');
+            document.getElementById('balanceInput').value = '100';
+        }
+        
+        function addBalance() {
+            const input = document.getElementById('balanceInput');
+            const amount = parseInt(input.value);
+            
+            if (isNaN(amount) || amount < 1) {
+                tg.showPopup({
+                    title: 'Ошибка',
+                    message: 'Пожалуйста, введите корректное количество Stars',
+                    buttons: [{ type: 'ok' }]
+                });
+                return;
+            }
+            
+            // Симуляция процесса оплаты через Telegram Stars
+            tg.showPopup({
+                title: 'Подтверждение оплаты',
+                message: `Вы хотите пополнить баланс на ${amount} Stars?`,
+                buttons: [
+                    { id: 'cancel', type: 'cancel' },
+                    { id: 'pay', type: 'default', text: 'Оплатить' }
+                ]
+            }, function(buttonId) {
+                if (buttonId === 'pay') {
+                    // В реальном приложении здесь будет вызов Telegram Payments
+                    processPayment(amount);
+                }
+            });
+        }
+        
+        function processPayment(amount) {
+            // Симуляция успешной оплаты
+            userBalance += amount;
+            updateBalanceDisplay();
+            
+            tg.showPopup({
+                title: 'Успешно!',
+                message: `Ваш баланс пополнен на ${amount} Stars!`,
+                buttons: [{ type: 'ok' }]
+            });
+            
+            hideAddBalanceModal();
+            
+            // В реальном приложении здесь будет:
+            // tg.openInvoice(url, function(callback) {
+            //     if (callback === 'paid') {
+            //         userBalance += amount;
+            //         updateBalanceDisplay();
+            //     }
+            // });
         }
         
         // Инициализация при загрузке страницы
@@ -376,16 +603,17 @@
             // Загружаем данные пользователя
             displayUserData();
             
+            // Инициализируем баланс
+            updateBalanceDisplay();
+            
             // Устанавливаем начальный экран
             showSection('account');
             
-            // Логи для отладки
-            console.log('Telegram WebApp данные:', {
-                platform: tg.platform,
-                version: tg.version,
-                initData: tg.initData,
-                initDataUnsafe: tg.initDataUnsafe,
-                colorScheme: tg.colorScheme
+            // Закрытие модального окна при клике вне его
+            document.getElementById('addBalanceModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    hideAddBalanceModal();
+                }
             });
         });
     </script>
