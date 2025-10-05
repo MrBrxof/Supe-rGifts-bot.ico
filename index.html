@@ -181,10 +181,13 @@
             text-align: center;
         }
 
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: rgba(255, 255, 255, 0.7);
+        .debug-info {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 16px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
         }
 
         /* Адаптивность для очень маленьких экранов */
@@ -211,7 +214,7 @@
         <!-- Секция Аккаунт -->
         <div id="account-section" class="section active">
             <div class="profile">
-                <img id="user-photo" src="" alt="Profile" onerror="this.src='https://via.placeholder.com/60'">
+                <img id="user-photo" src="https://via.placeholder.com/60?text=Loading" alt="Profile">
                 <div class="profile-info">
                     <h3 id="user-name">Загрузка...</h3>
                     <p id="user-id">ID: ...</p>
@@ -249,6 +252,10 @@
                 <button class="btn" onclick="replenishInventory()">
                     <i class="fas fa-plus"></i> Пополнить Инвентарь
                 </button>
+            </div>
+            <div class="debug-info" id="debug-info" style="display: none;">
+                <strong>Отладочная информация:</strong>
+                <div id="debug-content"></div>
             </div>
         </div>
         
@@ -289,82 +296,82 @@
     </div>
 
     <script>
-        // Инициализация Telegram Web App
+        // Основной объект Telegram Web App
         const tg = window.Telegram.WebApp;
         
-        // Функция для получения данных пользователя
-        function getUserData() {
-            // Способ 1: Через initDataUnsafe
-            if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-                const user = tg.initDataUnsafe.user;
-                return {
-                    id: user.id,
-                    firstName: user.first_name,
-                    lastName: user.last_name || '',
-                    username: user.username,
-                    photoUrl: user.photo_url,
-                    languageCode: user.language_code
-                };
-            }
+        // Функция для парсинга initData
+        function parseInitData() {
+            let userData = null;
             
-            // Способ 2: Через initData (нужно парсить)
-            if (tg.initData) {
+            // Способ 1: Прямой доступ через initDataUnsafe
+            if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                console.log('✅ Данные найдены в initDataUnsafe.user');
+                userData = tg.initDataUnsafe.user;
+            } 
+            // Способ 2: Парсинг initData строки
+            else if (tg.initData) {
+                console.log('🔍 Парсим initData строку');
                 try {
                     const params = new URLSearchParams(tg.initData);
                     const userStr = params.get('user');
                     if (userStr) {
-                        const user = JSON.parse(decodeURIComponent(userStr));
-                        return {
-                            id: user.id,
-                            firstName: user.first_name,
-                            lastName: user.last_name || '',
-                            username: user.username,
-                            photoUrl: user.photo_url,
-                            languageCode: user.language_code
-                        };
+                        userData = JSON.parse(decodeURIComponent(userStr));
+                        console.log('✅ Данные получены из initData');
                     }
                 } catch (e) {
-                    console.error('Error parsing user data:', e);
+                    console.error('❌ Ошибка парсинга initData:', e);
                 }
             }
             
-            // Если данные недоступны
-            return null;
+            return userData;
         }
         
         // Функция для отображения данных пользователя
         function displayUserData() {
-            const userData = getUserData();
+            const userData = parseInitData();
             const userNameElement = document.getElementById('user-name');
             const userIdElement = document.getElementById('user-id');
             const userPhotoElement = document.getElementById('user-photo');
             const userLanguageElement = document.getElementById('user-language');
+            const debugInfo = document.getElementById('debug-info');
+            const debugContent = document.getElementById('debug-content');
             
             if (userData) {
-                // Формируем полное имя
-                let fullName = userData.firstName;
-                if (userData.lastName) {
-                    fullName += ' ' + userData.lastName;
+                // Формируем отображаемое имя
+                let displayName = userData.first_name || '';
+                if (userData.last_name) {
+                    displayName += ' ' + userData.last_name;
                 }
                 if (userData.username) {
-                    fullName += ` (@${userData.username})`;
+                    displayName += ` (@${userData.username})`;
                 }
                 
-                userNameElement.textContent = fullName;
-                userIdElement.textContent = `ID: ${userData.id}`;
-                userLanguageElement.textContent = `Язык: ${userData.languageCode || 'не указан'}`;
+                userNameElement.textContent = displayName || 'Пользователь Telegram';
+                userIdElement.textContent = `ID: ${userData.id || 'неизвестен'}`;
+                userLanguageElement.textContent = `Язык: ${userData.language_code || 'не указан'}`;
                 
                 // Устанавливаем фото
-                if (userData.photoUrl) {
-                    userPhotoElement.src = userData.photoUrl;
+                if (userData.photo_url) {
+                    userPhotoElement.src = userData.photo_url;
                 } else {
-                    userPhotoElement.src = 'https://via.placeholder.com/60?text=No+Photo';
+                    userPhotoElement.src = 'https://via.placeholder.com/60?text=TG';
                 }
+                
+                // Показываем отладочную информацию
+                debugInfo.style.display = 'block';
+                debugContent.innerHTML = `
+                    <div>Platform: ${tg.platform}</div>
+                    <div>Version: ${tg.version}</div>
+                    <div>InitData: ${tg.initData ? '✓' : '✗'}</div>
+                    <div>InitDataUnsafe: ${tg.initDataUnsafe ? '✓' : '✗'}</div>
+                `;
+                
             } else {
-                userNameElement.textContent = 'Данные недоступны';
-                userIdElement.textContent = 'Откройте в Telegram';
+                // Данные не найдены
+                userNameElement.textContent = 'Гость';
+                userIdElement.textContent = 'ID: неизвестен';
                 userLanguageElement.textContent = 'Язык: неизвестен';
-                userPhotoElement.src = 'https://via.placeholder.com/60?text=Error';
+                userPhotoElement.src = 'https://via.placeholder.com/60?text=Guest';
                 
                 // Показываем сообщение об ошибке
                 const errorMsg = document.createElement('div');
@@ -372,9 +379,20 @@
                 errorMsg.innerHTML = `
                     <i class="fas fa-exclamation-triangle"></i>
                     <p><strong>Не удалось загрузить данные аккаунта</strong></p>
-                    <p>Пожалуйста, откройте это приложение через Telegram</p>
+                    <p>Это нормально для тестового режима. В продакшене данные будут доступны.</p>
                 `;
                 document.getElementById('account-section').insertBefore(errorMsg, document.querySelector('.inventory'));
+                
+                // Отладочная информация
+                debugInfo.style.display = 'block';
+                debugContent.innerHTML = `
+                    <div>Platform: ${tg.platform || 'неизвестно'}</div>
+                    <div>Version: ${tg.version || 'неизвестно'}</div>
+                    <div>InitData: ${tg.initData ? '✓' : '✗'}</div>
+                    <div>InitDataUnsafe: ${tg.initDataUnsafe ? '✓' : '✗'}</div>
+                    <div>ColorScheme: ${tg.colorScheme}</div>
+                    <div>ViewportHeight: ${tg.viewportHeight}</div>
+                `;
             }
         }
         
@@ -406,27 +424,41 @@
         
         // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
-            // Инициализируем Telegram Web App
+            console.log('🚀 Инициализация Telegram Web App...');
+            
+            // Базовая инициализация Telegram Web App
             tg.ready();
             tg.expand();
+            
+            // Устанавливаем цвет фона
             tg.setBackgroundColor('#2c2f33');
+            tg.setHeaderColor('#2c2f33');
             
             // Загружаем и отображаем данные пользователя
             displayUserData();
             
             // Инициализация начального экрана
             showSection('account');
-
-            // Логируем данные для отладки
-            console.log('Telegram WebApp initData:', tg.initData);
-            console.log('Telegram WebApp initDataUnsafe:', tg.initDataUnsafe);
-            console.log('Telegram WebApp version:', tg.version);
+            
+            // Логируем всю доступную информацию для отладки
+            console.log('=== Telegram WebApp Debug Info ===');
             console.log('Platform:', tg.platform);
+            console.log('Version:', tg.version);
+            console.log('InitData:', tg.initData);
+            console.log('InitDataUnsafe:', tg.initDataUnsafe);
+            console.log('ColorScheme:', tg.colorScheme);
+            console.log('ViewportHeight:', tg.viewportHeight);
+            console.log('==================================');
+            
+            // Проверяем, запущено ли в Telegram
+            if (!tg.initData) {
+                console.warn('⚠️  WebApp запущен вне Telegram или в тестовом режиме');
+            }
         });
 
-        // Альтернативный способ: слушаем события Telegram
+        // Обработчик изменения размера окна
         tg.onEvent('viewportChanged', function() {
-            console.log('Viewport changed');
+            console.log('Viewport changed to:', tg.viewportHeight);
         });
     </script>
 </body>
