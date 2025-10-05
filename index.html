@@ -30,7 +30,7 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-            padding-bottom: 70px; /* Для футера */
+            padding-bottom: 70px;
         }
         
         .container {
@@ -70,14 +70,6 @@
         
         .footer button.active {
             background-color: var(--accent-color);
-        }
-        
-        .footer button:hover {
-            background-color: var(--accent-hover);
-        }
-        
-        .footer button i {
-            font-size: 18px;
         }
         
         .profile {
@@ -138,16 +130,6 @@
             border: 1px dashed rgba(255, 255, 255, 0.3);
         }
         
-        .inventory-item i {
-            font-size: 24px;
-            margin-bottom: 4px;
-        }
-        
-        .inventory-item span {
-            font-size: 12px;
-            text-align: center;
-        }
-        
         .btn {
             background-color: var(--success-color);
             color: white;
@@ -190,12 +172,21 @@
             color: rgba(255, 255, 255, 0.7);
         }
         
-        .placeholder-content i {
-            font-size: 48px;
-            margin-bottom: 16px;
-            opacity: 0.5;
+        .error-message {
+            background-color: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            text-align: center;
         }
-        
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
         /* Адаптивность для очень маленьких экранов */
         @media (max-width: 360px) {
             .profile {
@@ -213,7 +204,6 @@
             }
         }
     </style>
-    <!-- Иконки Font Awesome для улучшенного UI -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -221,10 +211,11 @@
         <!-- Секция Аккаунт -->
         <div id="account-section" class="section active">
             <div class="profile">
-                <img id="user-photo" src="" alt="Profile">
+                <img id="user-photo" src="" alt="Profile" onerror="this.src='https://via.placeholder.com/60'">
                 <div class="profile-info">
                     <h3 id="user-name">Загрузка...</h3>
                     <p id="user-id">ID: ...</p>
+                    <p id="user-language">Язык: ...</p>
                 </div>
             </div>
             <div class="inventory">
@@ -299,16 +290,93 @@
 
     <script>
         // Инициализация Telegram Web App
-        const TelegramWebApp = window.Telegram.WebApp;
+        const tg = window.Telegram.WebApp;
         
-        // Расширяем приложение на весь экран
-        TelegramWebApp.expand();
+        // Функция для получения данных пользователя
+        function getUserData() {
+            // Способ 1: Через initDataUnsafe
+            if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                const user = tg.initDataUnsafe.user;
+                return {
+                    id: user.id,
+                    firstName: user.first_name,
+                    lastName: user.last_name || '',
+                    username: user.username,
+                    photoUrl: user.photo_url,
+                    languageCode: user.language_code
+                };
+            }
+            
+            // Способ 2: Через initData (нужно парсить)
+            if (tg.initData) {
+                try {
+                    const params = new URLSearchParams(tg.initData);
+                    const userStr = params.get('user');
+                    if (userStr) {
+                        const user = JSON.parse(decodeURIComponent(userStr));
+                        return {
+                            id: user.id,
+                            firstName: user.first_name,
+                            lastName: user.last_name || '',
+                            username: user.username,
+                            photoUrl: user.photo_url,
+                            languageCode: user.language_code
+                        };
+                    }
+                } catch (e) {
+                    console.error('Error parsing user data:', e);
+                }
+            }
+            
+            // Если данные недоступны
+            return null;
+        }
         
-        // Устанавливаем цвет фона для Telegram
-        TelegramWebApp.setBackgroundColor('#2c2f33');
-        
-        // Получаем данные пользователя
-        const user = TelegramWebApp.initDataUnsafe.user;
+        // Функция для отображения данных пользователя
+        function displayUserData() {
+            const userData = getUserData();
+            const userNameElement = document.getElementById('user-name');
+            const userIdElement = document.getElementById('user-id');
+            const userPhotoElement = document.getElementById('user-photo');
+            const userLanguageElement = document.getElementById('user-language');
+            
+            if (userData) {
+                // Формируем полное имя
+                let fullName = userData.firstName;
+                if (userData.lastName) {
+                    fullName += ' ' + userData.lastName;
+                }
+                if (userData.username) {
+                    fullName += ` (@${userData.username})`;
+                }
+                
+                userNameElement.textContent = fullName;
+                userIdElement.textContent = `ID: ${userData.id}`;
+                userLanguageElement.textContent = `Язык: ${userData.languageCode || 'не указан'}`;
+                
+                // Устанавливаем фото
+                if (userData.photoUrl) {
+                    userPhotoElement.src = userData.photoUrl;
+                } else {
+                    userPhotoElement.src = 'https://via.placeholder.com/60?text=No+Photo';
+                }
+            } else {
+                userNameElement.textContent = 'Данные недоступны';
+                userIdElement.textContent = 'Откройте в Telegram';
+                userLanguageElement.textContent = 'Язык: неизвестен';
+                userPhotoElement.src = 'https://via.placeholder.com/60?text=Error';
+                
+                // Показываем сообщение об ошибке
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'error-message';
+                errorMsg.innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p><strong>Не удалось загрузить данные аккаунта</strong></p>
+                    <p>Пожалуйста, откройте это приложение через Telegram</p>
+                `;
+                document.getElementById('account-section').insertBefore(errorMsg, document.querySelector('.inventory'));
+            }
+        }
         
         // Функция для отображения секции
         function showSection(section) {
@@ -329,8 +397,7 @@
         
         // Функция пополнения инвентаря
         function replenishInventory() {
-            // В реальном приложении здесь будет логика покупки
-            TelegramWebApp.showPopup({
+            tg.showPopup({
                 title: 'Пополнение инвентаря',
                 message: 'Функция пополнения инвентаря пока не реализована. В будущем здесь будет магазин предметов.',
                 buttons: [{ type: 'ok' }]
@@ -339,20 +406,27 @@
         
         // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
-            // Заполняем данные пользователя
-            if (user) {
-                document.getElementById('user-photo').src = user.photo_url || 'https://via.placeholder.com/60';
-                document.getElementById('user-name').textContent = user.username || 
-                    (user.first_name + (user.last_name ? ' ' + user.last_name : ''));
-                document.getElementById('user-id').textContent = `ID: ${user.id}`;
-            } else {
-                // Если данные пользователя недоступны
-                document.getElementById('user-name').textContent = 'Гость';
-                document.getElementById('user-id').textContent = 'Войдите в Telegram';
-            }
+            // Инициализируем Telegram Web App
+            tg.ready();
+            tg.expand();
+            tg.setBackgroundColor('#2c2f33');
+            
+            // Загружаем и отображаем данные пользователя
+            displayUserData();
             
             // Инициализация начального экрана
             showSection('account');
+
+            // Логируем данные для отладки
+            console.log('Telegram WebApp initData:', tg.initData);
+            console.log('Telegram WebApp initDataUnsafe:', tg.initDataUnsafe);
+            console.log('Telegram WebApp version:', tg.version);
+            console.log('Platform:', tg.platform);
+        });
+
+        // Альтернативный способ: слушаем события Telegram
+        tg.onEvent('viewportChanged', function() {
+            console.log('Viewport changed');
         });
     </script>
 </body>
